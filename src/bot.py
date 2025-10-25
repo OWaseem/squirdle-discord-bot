@@ -186,14 +186,14 @@ async def help_command(interaction: discord.Interaction):
     help_text = """🎮 **How to Play Squirdle**
 
 **Commands:**
-• `/start` — Start a personal Squirdle (your own random Pokémon)
-• `/daily` — Play today's shared Squirdle (same for everyone!)
-• `/guess` — Make a guess in your active game
-• `/leaderboard` — See today's fastest solvers
-• `/stats` — View your daily game stats
-• `/quit` — Quit your personal game
-• `/status` — Check if the bot is working
-• `/help` — Show this guide
+• `/start` — Start your own **personal Squirdle** (private game, only you can see it)
+• `/daily` — Play today's shared **Daily Squirdle** (public puzzle for everyone)
+• `/guess` — Make a guess in your current game *(your results are private)*
+• `/leaderboard` — View the **public** top solvers; your own Pokémon and rank are **shown privately**
+• `/stats` — See your detailed daily and personal stats *(private)*
+• `/status` — Check your game status and bot status *(private)*
+• `/quit` — Quit your personal game *(private)*
+• `/help` — Show this guide *(private)*
 
 ---
 
@@ -201,36 +201,44 @@ async def help_command(interaction: discord.Interaction):
 1. You have **9 tries** to guess the secret Pokémon in either mode.
 2. Each guess gives you hints about:
    - **Generation:** Earlier / later / same generation  
-   - **Type:** Shared types or none in common  
+   - **Type:** Shared or none in common  
    - **Height:** Taller / shorter / same height  
    - **Weight:** Heavier / lighter / same weight  
    - **Pokédex Number:** Higher / lower / same number
-3. If you run out of 9 tries, the game ends and reveals the Pokémon.
+3. If you run out of 9 tries, the game ends and reveals the Pokémon privately.
 
 ---
 
 **Modes:**
 🟢 **Daily Mode**
-- Everyone plays the same Pokémon of the day.
-- You can leave and come back anytime — progress is saved automatically.
-- Resets each midnight (EDT).  
-- Shows your completion time on the **leaderboard**.
+- Everyone plays the same Pokémon each day.
+- Progress is saved automatically until midnight (EDT).
+- The daily answer is revealed **only to you** once solved or out of tries.
+- Leaderboard shows everyone's rank publicly, but **your Pokémon reveal stays private**.
 
 🔵 **Personal Mode**
-- Your own private game with a random Pokémon.
+- Your own private Squirdle game (separate from the daily).
+- Visible only to you.
 - Can be quit anytime with `/quit`.
-- If you start the daily while in a personal game, your personal one will automatically end and show its answer.
+- Starting `/daily` will end your personal game and privately show its answer.
+
+---
+
+**Privacy & Visibility:**
+- Commands marked *(private)* use **ephemeral messages** — only **you** can see them.
+- The public leaderboard and daily puzzle messages stay visible to everyone.
+- You can safely play in any channel without revealing your Pokémon!
 
 ---
 
 **Tips:**
-• Use the Pokémon name auto-complete when guessing.  
-• Think logically: compare each hint before guessing again.  
-• New daily available every midnight (EDT).  
+• Use Pokémon name autocomplete when guessing.  
+• Use logical elimination from hints.  
+• New daily Pokémon drops every midnight (EDT).  
 
 Good luck, Trainer! 🍀
 """
-    await interaction.response.send_message(help_text)
+    await interaction.response.send_message(help_text, ephemeral=True)
 
 
 # -------------------- DAILY GAME --------------------
