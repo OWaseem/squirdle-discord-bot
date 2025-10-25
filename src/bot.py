@@ -4,6 +4,7 @@ import json
 import discord
 import signal
 import sys
+from datetime import datetime, timezone
 discord.opus = None   # 👈 Prevents Render crash (disables audio)
 
 # Fix for Python 3.13 audioop module issue
@@ -64,8 +65,17 @@ with open(data_path, "r", encoding="utf-8") as f:
 intents = discord.Intents.default()
 intents.message_content = True  # Enable message content intent
 bot = commands.Bot(command_prefix="!", intents=intents)
-active_games = {}
+active_games = {}  # Keep for backward compatibility
 bot_updating = False  # Track if bot is updating
+
+# Daily Squirdle system
+daily_game = {
+    "pokemon": None,
+    "date": None,
+    "attempts": {},  # user_id: [list of guesses]
+    "completions": {},  # user_id: completion_time
+    "leaderboard": []  # sorted by completion time
+}
 
 def find_pokemon(name):
     name = name.lower().strip()
@@ -74,6 +84,29 @@ def find_pokemon(name):
             return p
     return None
 
+def initialize_daily_game():
+    """Initialize or reset the daily game"""
+    global daily_game
+    today = datetime.now(timezone.utc).date()
+    
+    # Check if we need to reset for a new day
+    if daily_game["date"] != today:
+        # Use date as seed for consistent daily Pokémon
+        seed = today.toordinal()
+        random.seed(seed)
+        daily_pokemon = random.choice(POKEMON_DATA)
+        
+        daily_game = {
+            "pokemon": daily_pokemon,
+            "date": today,
+            "attempts": {},
+            "completions": {},
+            "leaderboard": []
+        }
+        print(f"🎮 Daily Squirdle initialized: {daily_pokemon['name'].title()}")
+    
+    return daily_game
+
 @bot.event
 async def on_ready():
     global bot_updating
@@ -81,6 +114,9 @@ async def on_ready():
     print(f"✅ Logged in as {bot.user}")
     await bot.tree.sync()
     print("🌐 Slash commands synced!")
+    
+    # Initialize daily game
+    initialize_daily_game()
 
 @bot.event
 async def on_disconnect():
@@ -113,14 +149,15 @@ async def help_command(interaction: discord.Interaction):
     help_text = """🎮 **How to Play Squirdle**
 
 **Commands:**
-• `/start` - Begin a new game
-• `/guess name:<pokemon>` - Make a guess
-• `/quit` - Exit your current game
+• `/daily` - Play today's Squirdle (same for everyone!)
+• `/guess` - Make a guess in daily game
+• `/leaderboard` - See today's fastest solvers
+• `/stats` - Your daily statistics
 • `/status` - Check if bot is working
 • `/help` - Show this guide
 
 **Game Rules:**
-1. You have **9 tries** to guess the secret Pokémon
+1. You have **9 tries** to guess today's secret Pokémon
 2. Each guess gives you hints about:
    - **Generation:** Earlier/later/same generation
    - **Type:** Shared types or no shared types
@@ -128,11 +165,17 @@ async def help_command(interaction: discord.Interaction):
    - **Weight:** Secret is heavier/lighter/same weight
    - **Pokédex:** Secret has higher/lower/same number
 
+**Daily Features:**
+• **Same puzzle for everyone** - Like Wordle!
+• **Daily reset** - New Pokémon at midnight UTC
+• **Leaderboard** - See who solved it fastest
+• **One attempt per day** - No multiple tries
+
 **Tips:**
 • Use auto-completion when typing Pokémon names
 • Start with popular Pokémon (Pikachu, Charizard, etc.)
 • Use hints to narrow down your next guess
-• Multiple players can play simultaneously
+• Everyone plays the same puzzle!
 
 **Win:** Guess the exact Pokémon!
 **Lose:** Run out of 9 tries
@@ -140,6 +183,47 @@ async def help_command(interaction: discord.Interaction):
 Good luck! 🍀"""
     
     await interaction.response.send_message(help_text)
+
+@bot.tree.command(name="daily", description="Start today's Squirdle - same for everyone!")
+async def daily(interaction: discord.Interaction):
+    global daily_game
+    user_id = interaction.user.id
+    
+    # Initialize daily game if needed
+    initialize_daily_game()
+    
+    # Check if user already completed today's puzzle
+    if user_id in daily_game["completions"]:
+        completion_time = daily_game["completions"][user_id]
+        await interaction.response.send_message(
+            f"🎉 You already solved today's Squirdle! Completed at {completion_time.strftime('%H:%M UTC')}.\n\n"
+            f"🕐 New puzzle available at midnight UTC!"
+        )
+        return
+    
+    # Check if user has attempts remaining
+    user_attempts = daily_game["attempts"].get(user_id, [])
+    if len(user_attempts) >= 9:
+        await interaction.response.send_message(
+            f"❌ You've used all 9 attempts for today's Squirdle!\n\n"
+            f"🕐 New puzzle available at midnight UTC!"
+        )
+        return
+    
+    # Show current progress or start message
+    if user_attempts:
+        attempts_used = len(user_attempts)
+        remaining = 9 - attempts_used
+        await interaction.response.send_message(
+            f"🎮 Welcome back to today's Squirdle! You have {remaining} attempts remaining.\n\n"
+            f"Use `/guess name:<pokemon>` to make your next guess!"
+        )
+    else:
+        await interaction.response.send_message(
+            f"🎮 Welcome to today's Squirdle! You have 9 tries to guess the secret Pokémon.\n\n"
+            f"Use `/guess name:<pokemon>` to make your first guess!\n"
+            f"💡 Use `/leaderboard` to see today's fastest solvers!"
+        )
 
 @bot.tree.command(name="start", description="Start a new Squirdle game!")
 async def start(interaction: discord.Interaction):
@@ -171,27 +255,37 @@ async def pokemon_autocomplete(
     
     return matches
 
-@bot.tree.command(name="guess", description="Guess a Pokémon!")
+@bot.tree.command(name="guess", description="Guess a Pokémon in today's Squirdle!")
 @app_commands.describe(name="The Pokémon you want to guess")
 @app_commands.autocomplete(name=pokemon_autocomplete)
 async def guess(interaction: discord.Interaction, name: str):
+    global daily_game
     user_id = interaction.user.id
-
-    if user_id not in active_games or active_games[user_id]["finished"]:
-        await interaction.response.send_message("❌ No active game! Use `/start` first.")
+    
+    # Initialize daily game if needed
+    initialize_daily_game()
+    
+    # Check if user already completed today's puzzle
+    if user_id in daily_game["completions"]:
+        await interaction.response.send_message("🎉 You already solved today's Squirdle! New puzzle available at midnight UTC.")
         return
-
-    game = active_games[user_id]
-    secret = game["secret"]
+    
+    # Check if user has attempts remaining
+    user_attempts = daily_game["attempts"].get(user_id, [])
+    if len(user_attempts) >= 9:
+        await interaction.response.send_message("❌ You've used all 9 attempts for today's Squirdle! New puzzle available at midnight UTC.")
+        return
+    
     guess = find_pokemon(name)
-
     if not guess:
         await interaction.response.send_message("❌ Pokémon not found! Try again.")
         return
     
-    # Only increment attempts for valid Pokémon guesses
-    game["attempts"] += 1
-
+    # Add this guess to user's attempts
+    user_attempts.append(guess)
+    daily_game["attempts"][user_id] = user_attempts
+    
+    secret = daily_game["pokemon"]
     results = []
 
     # Compare attributes
@@ -224,23 +318,94 @@ async def guess(interaction: discord.Interaction, name: str):
 
     if guess["pokedex"] == secret["pokedex"]:
         results.append("🎉 Correct Pokémon!")
-        game["finished"] = True
+        # Record completion
+        completion_time = datetime.now(timezone.utc)
+        daily_game["completions"][user_id] = completion_time
+        daily_game["leaderboard"].append({
+            "user_id": user_id,
+            "username": interaction.user.display_name,
+            "attempts": len(user_attempts),
+            "completion_time": completion_time
+        })
+        # Sort leaderboard by attempts, then by completion time
+        daily_game["leaderboard"].sort(key=lambda x: (x["attempts"], x["completion_time"]))
+        
+        msg = "\n".join(results)
+        msg += f"\n🎊 You solved today's Squirdle in {len(user_attempts)} tries!"
+        msg += f"\n🏆 You're #{daily_game['leaderboard'].index({'user_id': user_id, 'username': interaction.user.display_name, 'attempts': len(user_attempts), 'completion_time': completion_time}) + 1} on today's leaderboard!"
     elif guess["pokedex"] > secret["pokedex"]:
         results.append("Pokédex: 🔽 secret has a lower number")
     else:
         results.append("Pokédex: 🔼 secret has a higher number")
 
     msg = "\n".join(results)
-    if game["finished"]:
-        msg += f"\n🎊 You got it in {game['attempts']} tries!"
-    elif game["attempts"] >= game["max_tries"]:
-        msg += f"\n❌ Out of tries! The Pokémon was **{secret['name'].title()}**."
-        game["finished"] = True
+    if len(user_attempts) >= 9:
+        msg += f"\n❌ Out of tries! Today's Pokémon was **{secret['name'].title()}**."
     else:
-        remaining = game["max_tries"] - game["attempts"]
+        remaining = 9 - len(user_attempts)
         msg += f"\n🕹️ {remaining} tries left."
 
     await interaction.response.send_message(msg)
+
+@bot.tree.command(name="leaderboard", description="See today's fastest Squirdle solvers!")
+async def leaderboard(interaction: discord.Interaction):
+    global daily_game
+    initialize_daily_game()
+    
+    if not daily_game["leaderboard"]:
+        await interaction.response.send_message("🏆 No one has solved today's Squirdle yet! Be the first!")
+        return
+    
+    leaderboard_text = "🏆 **Today's Squirdle Leaderboard**\n\n"
+    for i, entry in enumerate(daily_game["leaderboard"][:10], 1):  # Top 10
+        time_str = entry["completion_time"].strftime("%H:%M UTC")
+        leaderboard_text += f"{i}. **{entry['username']}** - {entry['attempts']} tries ({time_str})\n"
+    
+    if len(daily_game["leaderboard"]) > 10:
+        leaderboard_text += f"\n... and {len(daily_game['leaderboard']) - 10} more!"
+    
+    await interaction.response.send_message(leaderboard_text)
+
+@bot.tree.command(name="stats", description="Your daily Squirdle statistics!")
+async def stats(interaction: discord.Interaction):
+    global daily_game
+    user_id = interaction.user.id
+    initialize_daily_game()
+    
+    user_attempts = daily_game["attempts"].get(user_id, [])
+    
+    if user_id in daily_game["completions"]:
+        completion_time = daily_game["completions"][user_id]
+        attempts_used = len(user_attempts)
+        time_str = completion_time.strftime("%H:%M UTC")
+        
+        # Find rank on leaderboard
+        rank = None
+        for i, entry in enumerate(daily_game["leaderboard"], 1):
+            if entry["user_id"] == user_id:
+                rank = i
+                break
+        
+        stats_text = f"🎉 **Today's Squirdle - SOLVED!**\n\n"
+        stats_text += f"✅ **Completed in {attempts_used} tries**\n"
+        stats_text += f"⏰ **Completed at {time_str}**\n"
+        if rank:
+            stats_text += f"🏆 **Rank #{rank}** on leaderboard\n"
+        stats_text += f"\n🕐 New puzzle available at midnight UTC!"
+    elif user_attempts:
+        attempts_used = len(user_attempts)
+        remaining = 9 - attempts_used
+        stats_text = f"🎮 **Today's Squirdle Progress**\n\n"
+        stats_text += f"📊 **Attempts used:** {attempts_used}/9\n"
+        stats_text += f"🕹️ **Attempts remaining:** {remaining}\n"
+        stats_text += f"\nUse `/guess name:<pokemon>` to continue!"
+    else:
+        stats_text = f"🎮 **Today's Squirdle**\n\n"
+        stats_text += f"📊 **Status:** Not started\n"
+        stats_text += f"🕹️ **Attempts available:** 9\n"
+        stats_text += f"\nUse `/daily` to start today's puzzle!"
+    
+    await interaction.response.send_message(stats_text)
 
 @bot.tree.command(name="quit", description="Quit your current Squirdle game!")
 async def quit_game(interaction: discord.Interaction):
