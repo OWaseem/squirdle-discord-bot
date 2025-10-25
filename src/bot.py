@@ -6,7 +6,7 @@ from threading import Thread
 import discord
 from discord import app_commands
 from discord.ext import commands
-from game_logic import find_pokemon, POKEMON_DATA
+from .game_logic import find_pokemon, POKEMON_DATA
 
 # =========================================================
 # Flask keep-alive (UNCHANGED for Render uptime)
