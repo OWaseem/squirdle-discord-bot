@@ -1,0 +1,29 @@
+# === Environment files ===
+.env
+*.env
+
+# === Python cache ===
+__pycache__/
+*.py[cod]
+*$py.class
+
+# === Virtual environment ===
+.venv/
+env/
+venv/
+ENV/
+
+# === IDE files ===
+.vscode/
+.idea/
+*.swp
+
+# === OS generated files ===
+.DS_Store
+Thumbs.db
+
+# === Logs ===
+*.log
+
+# === Render or deployment ===
+*.sqlite3
