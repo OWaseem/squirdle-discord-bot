@@ -4,6 +4,24 @@ import json
 import discord
 discord.opus = None   # 👈 Prevents Render crash (disables audio)
 
+# Fix for Python 3.13 audioop module issue
+try:
+    import audioop
+except ImportError:
+    # Create a dummy audioop module for Python 3.13+
+    import sys
+    import types
+    audioop = types.ModuleType('audioop')
+    audioop.ratecv = lambda *args, **kwargs: (b'', 0)
+    audioop.lin2lin = lambda *args, **kwargs: b''
+    audioop.lin2ulaw = lambda *args, **kwargs: b''
+    audioop.lin2alaw = lambda *args, **kwargs: b''
+    audioop.ulaw2lin = lambda *args, **kwargs: b''
+    audioop.alaw2lin = lambda *args, **kwargs: b''
+    audioop.lin2adpcm = lambda *args, **kwargs: (b'', 0)
+    audioop.adpcm2lin = lambda *args, **kwargs: b''
+    sys.modules['audioop'] = audioop
+
 from discord import app_commands
 from discord.ext import commands
 from flask import Flask
