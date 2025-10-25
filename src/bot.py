@@ -210,62 +210,69 @@ async def status(interaction: discord.Interaction):
 
 @bot.tree.command(name="help", description="Learn how to play Squirdle!")
 async def help_command(interaction: discord.Interaction):
-    help_text = """🎮 **How to Play Squirdle**
+    help_text = """🎮 **Welcome to Squirdle — the Pokémon Wordle Game!**
 
-**Commands:**
-• `/start` — Start your own **personal Squirdle** (private game, only you can see it)
-• `/daily` — Play today's shared **Daily Squirdle** (public puzzle for everyone)
-• `/guess` — Make a guess in your current game *(your results are private)*
-• `/leaderboard` — View the **public** top solvers; your own Pokémon and rank are **shown privately**
-• `/stats` — See your detailed daily and personal stats *(private)*
-• `/status` — Check your game status and bot status *(private)*
-• `/quit` — Quit your personal game *(private)*
-• `/help` — Show this guide *(private)*
+Guess the secret Pokémon using clues about its **generation**, **type**, **height**, **weight**, and **Pokédex number**.  
+You have **9 tries** per game — choose wisely, Trainer! ⚡
 
 ---
 
-**Game Rules:**
-1. You have **9 tries** to guess the secret Pokémon in either mode.
-2. Each guess gives you hints about:
-   - **Generation:** Earlier / later / same generation  
-   - **Type:** Shared or none in common  
-   - **Height:** Taller / shorter / same height  
-   - **Weight:** Heavier / lighter / same weight  
-   - **Pokédex Number:** Higher / lower / same number
-3. If you run out of 9 tries, the game ends and reveals the Pokémon privately.
+### 🧩 **Commands**
+• `/start` — Begin a new **personal game** (private to you).  
+• `/daily` — Play today’s **shared daily puzzle** (same Pokémon for everyone).  
+• `/guess` — Make a guess in your current game *(all guesses and hints are private)*.  
+• `/stats` — View detailed stats for **both** your daily and personal games, including your **last guess breakdown**.  
+• `/status` — Check your current game progress for both modes.  
+• `/leaderboard` — See today’s top solvers (public), with your personal rank shown privately.  
+• `/quit` — Quit your personal game at any time.  
+• `/help` — Display this guide.  
 
 ---
 
-**Modes:**
+### 📅 **Game Modes**
 🟢 **Daily Mode**
 - Everyone plays the same Pokémon each day.
-- Progress is saved automatically until midnight (EDT).
-- The daily answer is revealed **only to you** once solved or out of tries.
-- Leaderboard shows everyone's rank publicly, but **your Pokémon reveal stays private**.
+- You can start or continue it anytime with `/daily`.  
+- Progress is saved automatically until midnight (EDT).  
+- Your guesses and results are **private**.  
+- The daily Pokémon is revealed only to you after completion or 9 failed tries.  
+- You can play the daily and personal games **at the same time** — progress is tracked separately!
 
 🔵 **Personal Mode**
-- Your own private Squirdle game (separate from the daily).
-- Visible only to you.
-- Can be quit anytime with `/quit`.
-- Starting `/daily` will end your personal game and privately show its answer.
+- A fully **private** game unique to you.  
+- You can play it alongside your daily puzzle.  
+- Progress, hints, and results are visible **only to you**.  
+- You can quit at any time with `/quit`.  
 
 ---
 
-**Privacy & Visibility:**
-- Commands marked *(private)* use **ephemeral messages** — only **you** can see them.
-- The public leaderboard and daily puzzle messages stay visible to everyone.
-- You can safely play in any channel without revealing your Pokémon!
+### 💡 **Hints You’ll Receive**
+Each guess provides feedback about:  
+- **Generation** → earlier / later / same  
+- **Type** → shared or none in common  
+- **Height** → taller / shorter / same  
+- **Weight** → heavier / lighter / same  
+- **Pokédex** → higher / lower / same  
 
 ---
 
-**Tips:**
-• Use Pokémon name autocomplete when guessing.  
-• Use logical elimination from hints.  
-• New daily Pokémon drops every midnight (EDT).  
+### 🔒 **Privacy & Visibility**
+- All commands marked *(private)* send **ephemeral messages**, visible only to you.  
+- `/leaderboard` is public for everyone to see, but your detailed rank and Pokémon reveal stay private.  
+- You can safely play in any channel without spoiling the answer for others.
 
-Good luck, Trainer! 🍀
+---
+
+### 🧠 **Tips for Trainers**
+• Use Pokémon autocomplete when guessing.  
+• Track clues logically to narrow down your options.  
+• Daily Pokémon resets automatically every midnight (EDT).  
+• You can play both modes anytime — they won’t interfere!  
+
+Good luck, Trainer — your Pokédex mastery awaits! 🏆
 """
     await interaction.response.send_message(help_text, ephemeral=True)
+
 
 
 # -------------------- DAILY GAME --------------------
@@ -275,21 +282,12 @@ async def daily(interaction: discord.Interaction):
     user_id = interaction.user.id
     initialize_daily_game()
 
-    # --- Auto-close any active personal game before starting daily ---
-    if user_id in active_games and not active_games[user_id]["finished"]:
-        personal_secret = active_games[user_id]["secret"]["name"].title()
-        del active_games[user_id]
-        await interaction.response.send_message(
-            f"🛑 You had an unfinished personal Squirdle game.\n"
-            f"The secret Pokémon was **{personal_secret}**!\n\n"
-            f"🎮 Starting today's Squirdle now..."
-        )
-        await interaction.followup.send(
-            f"🎮 Welcome to today's Squirdle! You have 9 tries to guess the secret Pokémon.\n\n"
-            f"Use `/guess name:<pokemon>` to make your first guess!\n"
-            f"💡 Use `/leaderboard` to see today's fastest solvers!"
-        )
-        return
+    # --- Start or resume daily game without touching personal game ---
+    await interaction.response.send_message(
+        f"🎮 Starting today's Squirdle! You can keep playing your personal game alongside this one.\n\n"
+        f"Use `/guess name:<pokemon>` to make your first guess.\n"
+        f"💡 Use `/leaderboard` to see today's fastest solvers!"
+)
 
     # If already solved
     if user_id in daily_game["completions"]:
@@ -324,9 +322,22 @@ async def daily(interaction: discord.Interaction):
 
 
 # -------------------- PERSONAL GAME --------------------
-@bot.tree.command(name="start", description="Start a new individual Squirdle game!")
+@bot.tree.command(name="start", description="Start a new personal Squirdle game!")
 async def start(interaction: discord.Interaction):
     user_id = interaction.user.id
+
+    # Check if user already has an active game
+    if user_id in active_games and not active_games[user_id]["finished"]:
+        secret_name = active_games[user_id]["secret"]["name"].title()
+        await interaction.response.send_message(
+            f"⚠️ You already have an active personal game in progress!\n"
+            f"Do you want to end it and start a new one?\n\n"
+            f"🕹️ Current game's secret Pokémon: **{secret_name}** (hidden until you quit or finish)",
+            ephemeral=True
+        )
+        return
+
+    # Start new game if none active
     secret = random.choice(POKEMON_DATA)
     active_games[user_id] = {
         "secret": secret,
@@ -334,22 +345,34 @@ async def start(interaction: discord.Interaction):
         "max_tries": 9,
         "finished": False
     }
+
     await interaction.response.send_message(
-    f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon.\n"
-    f"Use `/guess name:<pokemon>` to make your first guess.\n\n"
-    f"💡 Use `/help` to learn how to play!\n🛑 Use `/quit` to exit your current game!",
-    ephemeral=True
-)
+        f"🎮 New personal game started, {interaction.user.name}!\n"
+        f"You have **9 tries** to guess the Pokémon.\n\n"
+        f"Use `/guess name:<pokemon>` to make your first guess.\n"
+        f"💡 Use `/help` to learn how to play.\n"
+        f"🛑 Use `/quit` anytime to end your game and reveal the Pokémon.",
+        ephemeral=True
+    )
 
 
-@bot.tree.command(name="quit", description="Quit your current individual game")
+@bot.tree.command(name="quit", description="Quit your current personal Squirdle game")
 async def quit_personal(interaction: discord.Interaction):
     user_id = interaction.user.id
     if user_id in active_games and not active_games[user_id]["finished"]:
+        secret_name = active_games[user_id]["secret"]["name"].title()
         del active_games[user_id]
-        await interaction.response.send_message("🛑 Your individual game has been ended.", ephemeral=True)
+        await interaction.response.send_message(
+            f"🛑 You ended your personal game.\n"
+            f"The secret Pokémon was **{secret_name}**! 🔍\n\n"
+            f"Use `/start` anytime to begin a new challenge.",
+            ephemeral=True
+        )
     else:
-        await interaction.response.send_message("ℹ️ You don't have an active individual game.", ephemeral=True)
+        await interaction.response.send_message(
+            "ℹ️ You don't have an active personal game right now. Use `/start` to begin one!",
+            ephemeral=True
+        )
 
 
 # -------------------- AUTOCOMPLETE --------------------

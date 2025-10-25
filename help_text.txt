@@ -2,11 +2,11 @@
 
 COMMANDS:
 • /start — Start your own personal Squirdle (private game, only you can see it)
-• /daily — Play today's shared Daily Squirdle (public puzzle for everyone)
+• /daily — Play today's shared Daily Squirdle (same puzzle for everyone)
 • /guess — Make a guess in your current game (your results are private)
 • /leaderboard — View the public top solvers; your own Pokémon and rank are shown privately
-• /stats — See your detailed daily and personal stats (private)
-• /status — Check your game status and bot status (private)
+• /stats — See detailed daily and personal stats (includes last guess breakdown)
+• /status — Check your current progress for both games (private)
 • /quit — Quit your personal game (private)
 • /help — Show this guide (private)
 
@@ -28,23 +28,25 @@ MODES:
 - Progress is saved automatically until midnight (EDT).
 - The daily answer is revealed only to you once solved or out of tries.
 - Leaderboard shows everyone's rank publicly, but your Pokémon reveal stays private.
+- You can play both the daily and personal games at the same time — progress is tracked separately!
 
 🔵 PERSONAL MODE
 - Your own private Squirdle game (separate from the daily).
 - Visible only to you.
 - Can be quit anytime with /quit.
-- Starting /daily will end your personal game and privately show its answer.
+- Progress is saved until you finish or quit.
 
 ----------------------------------------
 PRIVACY & VISIBILITY:
 • Commands marked (private) use ephemeral messages — only you can see them.
-• The public leaderboard and daily puzzle messages stay visible to everyone.
+• The public leaderboard remains visible to everyone, but your detailed results stay private.
 • You can safely play in any channel without revealing your Pokémon!
 
 ----------------------------------------
 TIPS:
 • Use Pokémon name autocomplete when guessing.
-• Use logical elimination from hints.
+• Use logical elimination from hints to narrow your choices.
 • A new daily Pokémon drops every midnight (EDT).
+• You can play both modes independently — they won’t interfere!
 
 Good luck, Trainer! 🍀
