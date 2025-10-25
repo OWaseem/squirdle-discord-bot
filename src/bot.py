@@ -190,70 +190,87 @@ async def status(interaction: discord.Interaction):
 
 
 # -------------------- HELP --------------------
+
 @bot.tree.command(name="help", description="Learn how to play Squirdle!")
 async def help_command(interaction: discord.Interaction):
-    help_text = """🎮 **Welcome to Squirdle — the Pokémon Wordle Game!**
+    """Displays game rules and command guide in compact, styled embeds."""
+    # --- Embed 1: Overview + Commands ---
+    embed1 = discord.Embed(
+        title="🎮 Welcome to **Squirdle** — the Pokémon Wordle Game!",
+        description=(
+            "Guess the secret Pokémon using clues about its **generation**, **type**, **height**, "
+            "**weight**, and **Pokédex number**. You have **9 tries** per game — choose wisely, Trainer! ⚡"
+        ),
+        color=discord.Color.blurple()
+    )
 
-Guess the secret Pokémon using clues about its **generation**, **type**, **height**, **weight**, and **Pokédex number**.  
-You have **9 tries** per game — choose wisely, Trainer! ⚡
+    embed1.add_field(
+        name="🧩 Commands",
+        value=(
+            "• `/start` — Begin a new **personal game** (private to you)\n"
+            "• `/daily` — Play today’s **shared daily puzzle**\n"
+            "• `/guess` — Make a guess in your active game\n"
+            "• `/stats` — View detailed progress and last hints\n"
+            "• `/status` — Check your ongoing games\n"
+            "• `/leaderboard` — See today’s top solvers\n"
+            "• `/quit` — End your personal game early\n"
+            "• `/help` — Show this guide"
+        ),
+        inline=False
+    )
 
----
+    embed1.add_field(
+        name="📅 Game Modes",
+        value=(
+            "🟢 **Daily Mode** — Same Pokémon for everyone, resets at midnight (EDT).\n"
+            "🔵 **Personal Mode** — Private challenge unique to you."
+        ),
+        inline=False
+    )
 
-### 🧩 **Commands**
-• `/start` — Begin a new **personal game** (private to you).  
-• `/daily` — Play today’s **shared daily puzzle** (same Pokémon for everyone).  
-• `/guess` — Make a guess in your current game *(all guesses and hints are private)*.  
-• `/stats` — View detailed stats for **both** your daily and personal games, including your **last guess breakdown**.  
-• `/status` — Check your current game progress for both modes.  
-• `/leaderboard` — See today’s top solvers (public), with your personal rank shown privately.  
-• `/quit` — Quit your personal game at any time.  
-• `/help` — Display this guide.  
+    # --- Embed 2: Hints, Privacy, Tips ---
+    embed2 = discord.Embed(
+        title="💡 How to Play & Get Better!",
+        color=discord.Color.green()
+    )
 
----
+    embed2.add_field(
+        name="🧠 Hints You’ll Receive",
+        value=(
+            "• **Generation** → earlier / later / same\n"
+            "• **Type** → shared / none\n"
+            "• **Height** → taller / shorter / same\n"
+            "• **Weight** → heavier / lighter / same\n"
+            "• **Pokédex** → higher / lower / same"
+        ),
+        inline=False
+    )
 
-### 📅 **Game Modes**
-🟢 **Daily Mode**
-- Everyone plays the same Pokémon each day.
-- You can start or continue it anytime with `/daily`.  
-- Progress is saved automatically until midnight (EDT).  
-- Your guesses and results are **private**.  
-- The daily Pokémon is revealed only to you after completion or 9 failed tries.  
-- You can play the daily and personal games **at the same time** — progress is tracked separately!
+    embed2.add_field(
+        name="🔒 Privacy",
+        value=(
+            "All personal game messages are **private**.\n"
+            "`/leaderboard` results are public, but your full stats remain private."
+        ),
+        inline=False
+    )
 
-🔵 **Personal Mode**
-- A fully **private** game unique to you.  
-- You can play it alongside your daily puzzle.  
-- Progress, hints, and results are visible **only to you**.  
-- You can quit at any time with `/quit`.  
+    embed2.add_field(
+        name="🏆 Tips for Trainers",
+        value=(
+            "• Use autocomplete when guessing.\n"
+            "• Track clues logically to narrow your guesses.\n"
+            "• Play both modes — they don’t interfere!\n"
+            "• Daily Pokémon resets every midnight (EDT)."
+        ),
+        inline=False
+    )
 
----
+    embed2.set_footer(text="Good luck, Trainer — your Pokédex mastery awaits! 🏆")
 
-### 💡 **Hints You’ll Receive**
-Each guess provides feedback about:  
-- **Generation** → earlier / later / same  
-- **Type** → shared or none in common  
-- **Height** → taller / shorter / same  
-- **Weight** → heavier / lighter / same  
-- **Pokédex** → higher / lower / same  
+    # --- Send both embeds (ephemeral or public as you prefer) ---
+    await interaction.response.send_message(embeds=[embed1, embed2], ephemeral=True)
 
----
-
-### 🔒 **Privacy & Visibility**
-- All commands marked *(private)* send **ephemeral messages**, visible only to you.  
-- `/leaderboard` is public for everyone to see, but your detailed rank and Pokémon reveal stay private.  
-- You can safely play in any channel without spoiling the answer for others.
-
----
-
-### 🧠 **Tips for Trainers**
-• Use Pokémon autocomplete when guessing.  
-• Track clues logically to narrow down your options.  
-• Daily Pokémon resets automatically every midnight (EDT).  
-• You can play both modes anytime — they won’t interfere!  
-
-Good luck, Trainer — your Pokédex mastery awaits! 🏆
-"""
-    await interaction.response.send_message(help_text, ephemeral=True)
 
 
 # -------------------- DAILY --------------------
