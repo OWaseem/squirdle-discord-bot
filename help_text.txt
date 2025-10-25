@@ -1,37 +1,50 @@
-🎮 **How to Play Squirdle**
+🎮 HOW TO PLAY SQUIRDLE
 
-**Commands:**
-• `/daily` - Play today's Squirdle (same for everyone!)
-• `/guess` - Make a guess in daily game
-• `/leaderboard` - See today's fastest solvers
-• `/stats` - Your daily statistics
-• `/quitdaily` - Reset your daily progress and start fresh
-• `/quit` - Quit your individual game
-• `/status` - Check if bot is working
-• `/help` - Show this guide
+COMMANDS:
+• /start — Start your own personal Squirdle (private game, only you can see it)
+• /daily — Play today's shared Daily Squirdle (public puzzle for everyone)
+• /guess — Make a guess in your current game (your results are private)
+• /leaderboard — View the public top solvers; your own Pokémon and rank are shown privately
+• /stats — See your detailed daily and personal stats (private)
+• /status — Check your game status and bot status (private)
+• /quit — Quit your personal game (private)
+• /help — Show this guide (private)
 
-**Game Rules:**
-1. You have **9 tries** to guess today's secret Pokémon
+----------------------------------------
+GAME RULES:
+1. You have 9 tries to guess the secret Pokémon in either mode.
 2. Each guess gives you hints about:
-   - **Generation:** Earlier/later/same generation
-   - **Type:** Shared types or no shared types
-   - **Height:** Secret is taller/shorter/same height
-   - **Weight:** Secret is heavier/lighter/same weight
-   - **Pokédex:** Secret has higher/lower/same number
+   - Generation: Earlier / later / same generation
+   - Type: Shared or none in common
+   - Height: Taller / shorter / same height
+   - Weight: Heavier / lighter / same weight
+   - Pokédex Number: Higher / lower / same number
+3. If you run out of 9 tries, the game ends and reveals the Pokémon privately.
 
-**Daily Features:**
-• **Same puzzle for everyone** - Like Wordle!
-• **Daily reset** - New Pokémon at midnight EDT
-• **Leaderboard** - See who solved it fastest
-• **One attempt per day** - No multiple tries
+----------------------------------------
+MODES:
+🟢 DAILY MODE
+- Everyone plays the same Pokémon each day.
+- Progress is saved automatically until midnight (EDT).
+- The daily answer is revealed only to you once solved or out of tries.
+- Leaderboard shows everyone's rank publicly, but your Pokémon reveal stays private.
 
-**Tips:**
-• Use auto-completion when typing Pokémon names
-• Start with popular Pokémon (Pikachu, Charizard, etc.)
-• Use hints to narrow down your next guess
-• Everyone plays the same puzzle!
+🔵 PERSONAL MODE
+- Your own private Squirdle game (separate from the daily).
+- Visible only to you.
+- Can be quit anytime with /quit.
+- Starting /daily will end your personal game and privately show its answer.
 
-**Win:** Guess the exact Pokémon!
-**Lose:** Run out of 9 tries
+----------------------------------------
+PRIVACY & VISIBILITY:
+• Commands marked (private) use ephemeral messages — only you can see them.
+• The public leaderboard and daily puzzle messages stay visible to everyone.
+• You can safely play in any channel without revealing your Pokémon!
 
-Good luck! 🍀
+----------------------------------------
+TIPS:
+• Use Pokémon name autocomplete when guessing.
+• Use logical elimination from hints.
+• A new daily Pokémon drops every midnight (EDT).
+
+Good luck, Trainer! 🍀
