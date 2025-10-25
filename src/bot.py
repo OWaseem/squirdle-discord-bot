@@ -355,7 +355,7 @@ async def guess(interaction: discord.Interaction, name: str):
 
         guess_data = find_pokemon(name)
         if not guess_data:
-            await interaction.response.send_message("❌ Pokémon not found! Try again.")
+            await interaction.response.send_message("❌ Pokémon not found! Try again.", ephemeral=True)
             return
 
         game["attempts"] += 1
@@ -389,12 +389,12 @@ async def guess(interaction: discord.Interaction, name: str):
     # DAILY GAME
     user_attempts = daily_game["attempts"].get(user_id, [])
     if len(user_attempts) >= 9:
-        await interaction.response.send_message("❌ You've used all 9 attempts for today's Squirdle! New puzzle available at midnight EDT.")
+        await interaction.response.send_message("❌ You've used all 9 attempts for today's Squirdle! New puzzle available at midnight EDT.", ephemeral=True)
         return
 
     guess_data = find_pokemon(name)
     if not guess_data:
-        await interaction.response.send_message("❌ Pokémon not found! Try again.")
+        await interaction.response.send_message("❌ Pokémon not found! Try again.", ephemeral=True)
         return
 
     user_attempts.append(guess_data)
@@ -430,7 +430,7 @@ async def guess(interaction: discord.Interaction, name: str):
 
         msg = "\n".join(results)
 
-    await interaction.response.send_message(msg)
+    await interaction.response.send_message(msg, ephemeral=True)
 
 
 # -------------------- LEADERBOARD / STATS (daily) --------------------
