@@ -154,6 +154,7 @@ async def help_command(interaction: discord.Interaction):
 • `/leaderboard` - See today's fastest solvers
 • `/stats` - Your daily statistics
 • `/quitdaily` - Reset your daily progress and start fresh
+• `/quit` - Quit your individual game (if playing old mode)
 • `/status` - Check if bot is working
 • `/help` - Show this guide
 
