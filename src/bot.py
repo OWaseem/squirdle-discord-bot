@@ -2,24 +2,47 @@ import os
 import random
 import json
 import discord
-discord.opus = None
+discord.opus = None   # 👈 Prevents Render crash (disables audio)
+
 from discord import app_commands
 from discord.ext import commands
+from flask import Flask
+from threading import Thread
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# ---------------------------
+# KEEP-ALIVE SERVER (for uptime checks)
+# ---------------------------
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "I'm alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# ---------------------------
+# DISCORD BOT SETUP
+# ---------------------------
+keep_alive()  # Start the uptime web server
+load_dotenv()  # Load token from .env (for local dev)
+
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Load Pokémon data
-with open("data/pokemon.json", "r", encoding="utf-8") as f:
+import os
+data_path = os.path.join(os.path.dirname(__file__), "..", "data", "pokemon.json")
+with open(data_path, "r", encoding="utf-8") as f:
     POKEMON_DATA = json.load(f)
 
-# Set up bot
+# Bot setup
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Store ongoing games
 active_games = {}
 
 def find_pokemon(name):
@@ -29,7 +52,6 @@ def find_pokemon(name):
             return p
     return None
 
-# --- Slash Commands ---
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
@@ -68,10 +90,9 @@ async def guess(interaction: discord.Interaction, name: str):
         await interaction.response.send_message("❌ Pokémon not found! Try again.")
         return
 
-    # --- Compare logic ---
     results = []
 
-    # Generation
+    # Compare attributes
     if guess["generation"] == secret["generation"]:
         results.append("Generation: ✅ same generation")
     elif guess["generation"] > secret["generation"]:
@@ -79,14 +100,12 @@ async def guess(interaction: discord.Interaction, name: str):
     else:
         results.append("Generation: 🔼 later gen")
 
-    # Type
     type_overlap = set(guess["types"]) & set(secret["types"])
     if type_overlap:
         results.append(f"Type: ✅ shared {', '.join(type_overlap)}")
     else:
         results.append("Type: ❌ no shared types")
 
-    # Height
     if guess["height_m"] > secret["height_m"]:
         results.append("Height: 🔽 secret is shorter")
     elif guess["height_m"] < secret["height_m"]:
@@ -94,7 +113,6 @@ async def guess(interaction: discord.Interaction, name: str):
     else:
         results.append("Height: ✅ same height")
 
-    # Weight
     if guess["weight_kg"] > secret["weight_kg"]:
         results.append("Weight: 🔽 secret is lighter")
     elif guess["weight_kg"] < secret["weight_kg"]:
@@ -102,7 +120,6 @@ async def guess(interaction: discord.Interaction, name: str):
     else:
         results.append("Weight: ✅ same weight")
 
-    # Pokedex
     if guess["pokedex"] == secret["pokedex"]:
         results.append("🎉 Correct Pokémon!")
         game["finished"] = True
@@ -123,4 +140,5 @@ async def guess(interaction: discord.Interaction, name: str):
 
     await interaction.response.send_message(msg)
 
-bot.run(TOKEN)
+if __name__ == "__main__":
+    bot.run(TOKEN)
