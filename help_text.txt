@@ -1,0 +1,37 @@
+🎮 **How to Play Squirdle**
+
+**Commands:**
+• `/daily` - Play today's Squirdle (same for everyone!)
+• `/guess` - Make a guess in daily game
+• `/leaderboard` - See today's fastest solvers
+• `/stats` - Your daily statistics
+• `/quitdaily` - Reset your daily progress and start fresh
+• `/quit` - Quit your individual game
+• `/status` - Check if bot is working
+• `/help` - Show this guide
+
+**Game Rules:**
+1. You have **9 tries** to guess today's secret Pokémon
+2. Each guess gives you hints about:
+   - **Generation:** Earlier/later/same generation
+   - **Type:** Shared types or no shared types
+   - **Height:** Secret is taller/shorter/same height
+   - **Weight:** Secret is heavier/lighter/same weight
+   - **Pokédex:** Secret has higher/lower/same number
+
+**Daily Features:**
+• **Same puzzle for everyone** - Like Wordle!
+• **Daily reset** - New Pokémon at midnight EDT
+• **Leaderboard** - See who solved it fastest
+• **One attempt per day** - No multiple tries
+
+**Tips:**
+• Use auto-completion when typing Pokémon names
+• Start with popular Pokémon (Pikachu, Charizard, etc.)
+• Use hints to narrow down your next guess
+• Everyone plays the same puzzle!
+
+**Win:** Guess the exact Pokémon!
+**Lose:** Run out of 9 tries
+
+Good luck! 🍀
