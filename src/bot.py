@@ -60,6 +60,7 @@ with open(data_path, "r", encoding="utf-8") as f:
 
 # Bot setup
 intents = discord.Intents.default()
+intents.message_content = True  # Enable message content intent
 bot = commands.Bot(command_prefix="!", intents=intents)
 active_games = {}
 
