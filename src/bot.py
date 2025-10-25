@@ -2,6 +2,8 @@ import os
 import random
 import json
 import discord
+import signal
+import sys
 discord.opus = None   # 👈 Prevents Render crash (disables audio)
 
 # Fix for Python 3.13 audioop module issue
@@ -77,6 +79,10 @@ async def on_ready():
     await bot.tree.sync()
     print("🌐 Slash commands synced!")
 
+@bot.tree.command(name="status", description="Check if the bot is working!")
+async def status(interaction: discord.Interaction):
+    await interaction.response.send_message("✅ Bot is online and ready to play Squirdle!")
+
 @bot.tree.command(name="start", description="Start a new Squirdle game!")
 async def start(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -88,7 +94,7 @@ async def start(interaction: discord.Interaction):
         "finished": False
     }
     await interaction.response.send_message(
-        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - don't worry about spelling, I'll show you the correct name!"
+        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - don't worry about spelling, I'll show you the correct name!\n\n💡 Use `/status` to check if the bot is working!"
     )
 
 @bot.tree.command(name="guess", description="Guess a Pokémon!")
