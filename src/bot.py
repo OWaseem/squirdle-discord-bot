@@ -136,10 +136,11 @@ def compare_and_build_message(guess, secret):
 # =========================================================
 @bot.tree.command(name="status", description="Check if the bot is working and your current game status!")
 async def status(interaction: discord.Interaction):
-    global bot_updating, daily_game
+    global bot_updating, daily_game, active_games
     user_id = interaction.user.id
     initialize_daily_game()
 
+    # --- Check bot state ---
     if bot_updating:
         embed = discord.Embed(
             title="🔄 Bot Updating",
@@ -149,26 +150,38 @@ async def status(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
-    # --- Personal game state ---
+    # --- PERSONAL GAME STATUS ---
     personal_status = "❌ No active personal game"
+    last_personal_guess = None
+
     if user_id in active_games and not active_games[user_id]["finished"]:
-        attempts_used = active_games[user_id]["attempts"]
-        remaining = active_games[user_id]["max_tries"] - attempts_used
+        game = active_games[user_id]
+        attempts_used = game["attempts"]
+        remaining = game["max_tries"] - attempts_used
         personal_status = f"🎮 Active — {remaining} tries left"
 
-    # --- Daily game state ---
+        # Add last guess info if available
+        if "guesses" in game and game["guesses"]:
+            last_personal_guess = game["guesses"][-1]
+
+    # --- DAILY GAME STATUS ---
     user_attempts = len(daily_game["attempts"].get(user_id, []))
     daily_remaining = 9 - user_attempts
+    last_daily_guess = None
+
     if user_id in daily_game["completions"]:
         daily_status = "✅ Completed!"
     elif user_attempts >= 9:
         daily_status = "❌ Out of tries!"
     elif user_attempts > 0:
         daily_status = f"🕹️ In progress — {daily_remaining} tries left"
+        # Add last daily guess info
+        if user_id in daily_game["attempts"] and daily_game["attempts"][user_id]:
+            last_daily_guess = daily_game["attempts"][user_id][-1]
     else:
         daily_status = "💤 Not started yet"
 
-    # --- Embed layout ---
+    # --- EMBED LAYOUT ---
     embed = discord.Embed(
         title="🧩 Squirdle Bot Status",
         color=discord.Color.green()
@@ -176,9 +189,23 @@ async def status(interaction: discord.Interaction):
     embed.add_field(name="🟢 Bot Status", value="Online and ready!", inline=False)
     embed.add_field(name="📅 Daily Game", value=daily_status, inline=False)
     embed.add_field(name="🎮 Personal Game", value=personal_status, inline=False)
-    embed.set_footer(text="💡 Use /help for all commands")
 
+    # --- Add short last guess summary ---
+    if last_daily_guess or last_personal_guess:
+        summary = ""
+        if last_daily_guess:
+            summary += f"📅 **Last Daily Guess:** {last_daily_guess.title()}\n"
+        if last_personal_guess:
+            summary += f"🎮 **Last Personal Guess:** {last_personal_guess.title()}\n"
+        embed.add_field(
+            name="🔍 Recent Guess Summary",
+            value=summary.strip(),
+            inline=False
+        )
+
+    embed.set_footer(text="💡 Use /stats for detailed hint breakdowns and progress.")
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 
 @bot.tree.command(name="help", description="Learn how to play Squirdle!")
@@ -528,11 +555,11 @@ async def leaderboard(interaction: discord.Interaction):
 
 @bot.tree.command(name="stats", description="View your personal and daily Squirdle statistics!")
 async def stats(interaction: discord.Interaction):
-    global daily_game
+    global daily_game, active_games
     user_id = interaction.user.id
     initialize_daily_game()
 
-    # --- Daily Stats ---
+    # --- DAILY STATS ---
     attempts = len(daily_game["attempts"].get(user_id, []))
     solved = user_id in daily_game["completions"]
 
@@ -555,17 +582,44 @@ async def stats(interaction: discord.Interaction):
         daily_details = "Use `/daily` to begin!"
         color = discord.Color.blurple()
 
-    # --- Personal Stats ---
+    # --- Add Last Guess Summary for Daily Game ---
+    if attempts > 0 and user_id in daily_game["attempts"]:
+        last_guess = daily_game["attempts"][user_id][-1]
+        if "hints" in daily_game and user_id in daily_game["hints"]:
+            daily_hints = daily_game["hints"][user_id].get(last_guess, None)
+            if daily_hints:
+                daily_details += "\n\n🔍 **Last Daily Guess Summary**\n"
+                daily_details += f"• Pokémon: **{last_guess.title()}**\n"
+                daily_details += f"• Generation Hint: {daily_hints.get('generation_hint', '—')}\n"
+                daily_details += f"• Type Hint: {daily_hints.get('type_hint', '—')}\n"
+                daily_details += f"• Height Hint: {daily_hints.get('height_hint', '—')}\n"
+                daily_details += f"• Weight Hint: {daily_hints.get('weight_hint', '—')}\n"
+                daily_details += f"• Pokédex Hint: {daily_hints.get('pokedex_hint', '—')}\n"
+
+    # --- PERSONAL GAME STATS ---
     if user_id in active_games and not active_games[user_id]["finished"]:
         game = active_games[user_id]
         personal_details = (
             f"**Attempts used:** {game['attempts']}/{game['max_tries']}\n"
             f"**Tries remaining:** {game['max_tries'] - game['attempts']}"
         )
+
+        # Add last guess info if available
+        if "guesses" in game and game["guesses"]:
+            last_guess = game["guesses"][-1]
+            last_hints = game.get("hints", {}).get(last_guess, None)
+            if last_hints:
+                personal_details += "\n\n🔍 **Last Personal Guess Summary**\n"
+                personal_details += f"• Pokémon: **{last_guess.title()}**\n"
+                personal_details += f"• Generation Hint: {last_hints.get('generation_hint', '—')}\n"
+                personal_details += f"• Type Hint: {last_hints.get('type_hint', '—')}\n"
+                personal_details += f"• Height Hint: {last_hints.get('height_hint', '—')}\n"
+                personal_details += f"• Weight Hint: {last_hints.get('weight_hint', '—')}\n"
+                personal_details += f"• Pokédex Hint: {last_hints.get('pokedex_hint', '—')}\n"
     else:
         personal_details = "No active personal game."
 
-    # --- Embed layout ---
+    # --- EMBED LAYOUT ---
     embed = discord.Embed(
         title="📊 Your Squirdle Stats",
         color=color
@@ -575,7 +629,6 @@ async def stats(interaction: discord.Interaction):
     embed.set_footer(text="🏆 Use /leaderboard to see today's top solvers!")
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
 
 # =========================================================
 # KEEP-ALIVE + RUN
