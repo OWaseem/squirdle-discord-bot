@@ -149,9 +149,9 @@ async def guess(interaction: discord.Interaction, name: str):
         results.append("🎉 Correct Pokémon!")
         game["finished"] = True
     elif guess["pokedex"] > secret["pokedex"]:
-        results.append("Pokédex: 🔽 secret is lower")
+        results.append("Pokédex: 🔽 secret has a lower number")
     else:
-        results.append("Pokédex: 🔼 secret is higher")
+        results.append("Pokédex: 🔼 secret has a higher number")
 
     msg = "\n".join(results)
     if game["finished"]:
