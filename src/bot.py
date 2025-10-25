@@ -433,6 +433,11 @@ async def guess(interaction: discord.Interaction, name: str):
 
             msg = "\n".join(results)
 
+        embed = discord.Embed(
+            title="🎮 Your Guess Result",
+            description=msg,
+            color=discord.Color.blurple()
+            )
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
@@ -479,8 +484,14 @@ async def guess(interaction: discord.Interaction, name: str):
             results.append(f"🕹️ {remaining} tries left.")
 
         msg = "\n".join(results)
+    
+    embed = discord.Embed(
+        title="📅 Daily Guess Result",
+        description=msg,
+        color=discord.Color.blurple()
+    )
 
-    await interaction.response.send_message(msg, ephemeral=True)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # -------------------- LEADERBOARD / STATS (daily) --------------------
