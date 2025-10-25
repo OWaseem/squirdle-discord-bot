@@ -108,6 +108,39 @@ async def updating(interaction: discord.Interaction):
     bot_updating = True
     await interaction.response.send_message("🔄 Bot marked as updating - users will be notified!")
 
+@bot.tree.command(name="help", description="Learn how to play Squirdle!")
+async def help_command(interaction: discord.Interaction):
+    help_text = """🎮 **How to Play Squirdle**
+
+**Commands:**
+• `/start` - Begin a new game
+• `/guess name:<pokemon>` - Make a guess
+• `/quit` - Exit your current game
+• `/status` - Check if bot is working
+• `/help` - Show this guide
+
+**Game Rules:**
+1. You have **9 tries** to guess the secret Pokémon
+2. Each guess gives you hints about:
+   - **Generation:** Earlier/later/same generation
+   - **Type:** Shared types or no shared types
+   - **Height:** Secret is taller/shorter/same height
+   - **Weight:** Secret is heavier/lighter/same weight
+   - **Pokédex:** Secret has higher/lower/same number
+
+**Tips:**
+• Use auto-completion when typing Pokémon names
+• Start with popular Pokémon (Pikachu, Charizard, etc.)
+• Use hints to narrow down your next guess
+• Multiple players can play simultaneously
+
+**Win:** Guess the exact Pokémon!
+**Lose:** Run out of 9 tries
+
+Good luck! 🍀"""
+    
+    await interaction.response.send_message(help_text)
+
 @bot.tree.command(name="start", description="Start a new Squirdle game!")
 async def start(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -119,7 +152,7 @@ async def start(interaction: discord.Interaction):
         "finished": False
     }
     await interaction.response.send_message(
-        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - auto-completion will help with spelling!\n\n💡 Use `/status` to check if the bot is working!\n🛑 Use `/quit` to exit your current game!"
+        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - auto-completion will help with spelling!\n\n💡 Use `/help` to learn how to play!\n🛑 Use `/quit` to exit your current game!"
     )
 
 @bot.tree.command(name="guess", description="Guess a Pokémon!")
