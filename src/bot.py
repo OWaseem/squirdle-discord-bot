@@ -155,9 +155,7 @@ async def start(interaction: discord.Interaction):
         f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - auto-completion will help with spelling!\n\n💡 Use `/help` to learn how to play!\n🛑 Use `/quit` to exit your current game!"
     )
 
-@bot.tree.command(name="guess", description="Guess a Pokémon!")
-@app_commands.describe(name="The Pokémon you want to guess")
-@app_commands.autocomplete(name=async def pokemon_autocomplete(
+async def pokemon_autocomplete(
     interaction: discord.Interaction,
     current: str,
 ) -> list[app_commands.Choice[str]]:
@@ -172,7 +170,10 @@ async def start(interaction: discord.Interaction):
                 break
     
     return matches
-)
+
+@bot.tree.command(name="guess", description="Guess a Pokémon!")
+@app_commands.describe(name="The Pokémon you want to guess")
+@app_commands.autocomplete(name=pokemon_autocomplete)
 async def guess(interaction: discord.Interaction, name: str):
     user_id = interaction.user.id
 
