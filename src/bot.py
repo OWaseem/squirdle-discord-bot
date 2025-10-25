@@ -3,13 +3,16 @@ import random
 from datetime import datetime, timezone
 from flask import Flask
 from threading import Thread
+
 import discord
 from discord import app_commands
 from discord.ext import commands
+
+# IMPORTANT: relative import because we run with `python -m src.bot`
 from .game_logic import find_pokemon, POKEMON_DATA
 
 # =========================================================
-# Flask keep-alive (UNCHANGED for Render uptime)
+# Flask keep-alive (UNCHANGED)
 # =========================================================
 app = Flask('')
 
@@ -30,8 +33,10 @@ def keep_alive():
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-daily_game = None
-active_games = {}
+# Daily game state (shared puzzle)
+daily_game = None  # dict initialized each day
+# Personal games per user_id
+active_games: dict[int, dict] = {}
 bot_updating = False
 
 
@@ -48,9 +53,9 @@ def initialize_daily_game():
         daily_game = {
             "pokemon": daily_pokemon,
             "date": today_edt,
-            "attempts": {},
-            "completions": {},
-            "leaderboard": []
+            "attempts": {},      # user_id -> [list of guesses (dicts)]
+            "completions": {},   # user_id -> datetime
+            "leaderboard": []    # list of {user_id, username, attempts, completion_time}
         }
         print(f"🎮 Daily Squirdle initialized: {daily_pokemon['name'].title()}")
     return daily_game
@@ -79,6 +84,51 @@ async def on_resumed():
     global bot_updating
     bot_updating = False
     print("✅ Bot reconnected and ready!")
+
+
+# =========================================================
+# Helpers
+# =========================================================
+async def send_not_found(interaction):
+    await interaction.response.send_message("❌ Pokémon not found! Try again.")
+
+
+def compare_and_build_message(guess, secret):
+    """Return list of hint strings comparing guess vs secret."""
+    results = []
+
+    # Generation
+    if guess["generation"] == secret["generation"]:
+        results.append("Generation: ✅ same generation")
+    elif guess["generation"] > secret["generation"]:
+        results.append("Generation: 🔽 earlier gen")
+    else:
+        results.append("Generation: 🔼 later gen")
+
+    # Types
+    type_overlap = set(guess["types"]) & set(secret["types"])
+    if type_overlap:
+        results.append(f"Type: ✅ shared {', '.join(type_overlap)}")
+    else:
+        results.append("Type: ❌ no shared types")
+
+    # Height
+    if guess["height_m"] > secret["height_m"]:
+        results.append("Height: 🔽 secret is shorter")
+    elif guess["height_m"] < secret["height_m"]:
+        results.append("Height: 🔼 secret is taller")
+    else:
+        results.append("Height: ✅ same height")
+
+    # Weight
+    if guess["weight_kg"] > secret["weight_kg"]:
+        results.append("Weight: 🔽 secret is lighter")
+    elif guess["weight_kg"] < secret["weight_kg"]:
+        results.append("Weight: 🔼 secret is heavier")
+    else:
+        results.append("Weight: ✅ same weight")
+
+    return results
 
 
 # =========================================================
@@ -134,15 +184,14 @@ Good luck! 🍀"""
     await interaction.response.send_message(help_text)
 
 
-# =========================================================
-# DAILY GAME
-# =========================================================
+# -------------------- DAILY GAME --------------------
 @bot.tree.command(name="daily", description="Start today's Squirdle - same for everyone!")
 async def daily(interaction: discord.Interaction):
     global daily_game
     user_id = interaction.user.id
     initialize_daily_game()
 
+    # If already solved
     if user_id in daily_game["completions"]:
         completion_time = daily_game["completions"][user_id]
         await interaction.response.send_message(
@@ -173,9 +222,7 @@ async def daily(interaction: discord.Interaction):
         )
 
 
-# =========================================================
-# PERSONAL GAME
-# =========================================================
+# -------------------- PERSONAL GAME --------------------
 @bot.tree.command(name="start", description="Start a new individual Squirdle game!")
 async def start(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -193,57 +240,72 @@ async def start(interaction: discord.Interaction):
     )
 
 
-# =========================================================
-# GUESS COMMAND (auto-detect game mode)
-# =========================================================
+@bot.tree.command(name="quit", description="Quit your current individual game")
+async def quit_personal(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    if user_id in active_games and not active_games[user_id]["finished"]:
+        del active_games[user_id]
+        await interaction.response.send_message("🛑 Your individual game has been ended.")
+    else:
+        await interaction.response.send_message("ℹ️ You don't have an active individual game.")
+
+
+@bot.tree.command(name="quitdaily", description="Reset your daily progress and start fresh")
+async def quit_daily(interaction: discord.Interaction):
+    global daily_game
+    initialize_daily_game()
+    user_id = interaction.user.id
+
+    # Remove attempts
+    if user_id in daily_game["attempts"]:
+        del daily_game["attempts"][user_id]
+
+    # Remove completion + any leaderboard entry for that user
+    if user_id in daily_game["completions"]:
+        del daily_game["completions"][user_id]
+    daily_game["leaderboard"] = [e for e in daily_game["leaderboard"] if e["user_id"] != user_id]
+
+    await interaction.response.send_message("🔄 Your daily progress has been reset. Use `/daily` to start again!")
+
+
+# -------------------- AUTOCOMPLETE --------------------
+async def pokemon_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    matches = []
+    current_lower = current.lower()
+    for p in POKEMON_DATA:
+        if current_lower in p["name"].lower():
+            matches.append(app_commands.Choice(name=p["name"].title(), value=p["name"]))
+            if len(matches) >= 25:  # Discord limit
+                break
+    return matches
+
+
+# -------------------- GUESS (auto-detect mode) --------------------
 @bot.tree.command(name="guess", description="Make a guess in your current Squirdle game!")
 @app_commands.describe(name="The Pokémon you want to guess")
+@app_commands.autocomplete(name=pokemon_autocomplete)
 async def guess(interaction: discord.Interaction, name: str):
     global daily_game
     user_id = interaction.user.id
     initialize_daily_game()
 
-    # Detect which game mode user is in
+    # PERSONAL GAME takes precedence if active and not finished
     if user_id in active_games and not active_games[user_id]["finished"]:
-        # PERSONAL GAME
         game = active_games[user_id]
-        secret = game["secret"]
-        game["attempts"] += 1
-        attempts_left = game["max_tries"] - game["attempts"]
 
         guess_data = find_pokemon(name)
         if not guess_data:
-            await interaction.response.send_message("❌ Pokémon not found! Try again.")
+            await send_not_found(interaction)
             return
 
-        results = []
-        # Compare attributes
-        if guess_data["generation"] == secret["generation"]:
-            results.append("Generation: ✅ same generation")
-        elif guess_data["generation"] > secret["generation"]:
-            results.append("Generation: 🔽 earlier gen")
-        else:
-            results.append("Generation: 🔼 later gen")
+        game["attempts"] += 1
+        attempts_left = game["max_tries"] - game["attempts"]
+        secret = game["secret"]
 
-        type_overlap = set(guess_data["types"]) & set(secret["types"])
-        if type_overlap:
-            results.append(f"Type: ✅ shared {', '.join(type_overlap)}")
-        else:
-            results.append("Type: ❌ no shared types")
-
-        if guess_data["height_m"] > secret["height_m"]:
-            results.append("Height: 🔽 secret is shorter")
-        elif guess_data["height_m"] < secret["height_m"]:
-            results.append("Height: 🔼 secret is taller")
-        else:
-            results.append("Height: ✅ same height")
-
-        if guess_data["weight_kg"] > secret["weight_kg"]:
-            results.append("Weight: 🔽 secret is lighter")
-        elif guess_data["weight_kg"] < secret["weight_kg"]:
-            results.append("Weight: 🔼 secret is heavier")
-        else:
-            results.append("Weight: ✅ same weight")
+        results = compare_and_build_message(guess_data, secret)
 
         if guess_data["pokedex"] == secret["pokedex"]:
             results.append("🎉 Correct Pokémon!")
@@ -251,6 +313,7 @@ async def guess(interaction: discord.Interaction, name: str):
             msg = "\n".join(results)
             msg += f"\n🎊 You solved your personal Squirdle in {game['attempts']} tries!"
         else:
+            # Add pokedex directional hint
             if guess_data["pokedex"] > secret["pokedex"]:
                 results.append("Pokédex: 🔽 secret has a lower number")
             else:
@@ -265,9 +328,9 @@ async def guess(interaction: discord.Interaction, name: str):
             msg = "\n".join(results)
 
         await interaction.response.send_message(msg)
-        return
+        return  # IMPORTANT: do not fall through to daily logic
 
-    # Otherwise -> DAILY GAME
+    # Otherwise handle DAILY GAME
     user_attempts = daily_game["attempts"].get(user_id, [])
     if len(user_attempts) >= 9:
         await interaction.response.send_message("❌ You've used all 9 attempts for today's Squirdle! New puzzle available at midnight EDT.")
@@ -275,40 +338,15 @@ async def guess(interaction: discord.Interaction, name: str):
 
     guess_data = find_pokemon(name)
     if not guess_data:
-        await interaction.response.send_message("❌ Pokémon not found! Try again.")
+        await send_not_found(interaction)
         return
 
+    # Append only to daily attempts (personal is isolated above)
     user_attempts.append(guess_data)
     daily_game["attempts"][user_id] = user_attempts
     secret = daily_game["pokemon"]
 
-    results = []
-    if guess_data["generation"] == secret["generation"]:
-        results.append("Generation: ✅ same generation")
-    elif guess_data["generation"] > secret["generation"]:
-        results.append("Generation: 🔽 earlier gen")
-    else:
-        results.append("Generation: 🔼 later gen")
-
-    type_overlap = set(guess_data["types"]) & set(secret["types"])
-    if type_overlap:
-        results.append(f"Type: ✅ shared {', '.join(type_overlap)}")
-    else:
-        results.append("Type: ❌ no shared types")
-
-    if guess_data["height_m"] > secret["height_m"]:
-        results.append("Height: 🔽 secret is shorter")
-    elif guess_data["height_m"] < secret["height_m"]:
-        results.append("Height: 🔼 secret is taller")
-    else:
-        results.append("Height: ✅ same height")
-
-    if guess_data["weight_kg"] > secret["weight_kg"]:
-        results.append("Weight: 🔽 secret is lighter")
-    elif guess_data["weight_kg"] < secret["weight_kg"]:
-        results.append("Weight: 🔼 secret is heavier")
-    else:
-        results.append("Weight: ✅ same weight")
+    results = compare_and_build_message(guess_data, secret)
 
     if guess_data["pokedex"] == secret["pokedex"]:
         results.append("🎉 Correct Pokémon!")
@@ -320,28 +358,28 @@ async def guess(interaction: discord.Interaction, name: str):
             "attempts": len(user_attempts),
             "completion_time": completion_time
         })
+        # Sort by attempts, then time
         daily_game["leaderboard"].sort(key=lambda x: (x["attempts"], x["completion_time"]))
         msg = "\n".join(results)
         msg += f"\n🎊 You solved today's Squirdle in {len(user_attempts)} tries!"
-    elif guess_data["pokedex"] > secret["pokedex"]:
-        results.append("Pokédex: 🔽 secret has a lower number")
-        msg = "\n".join(results)
     else:
-        results.append("Pokédex: 🔼 secret has a higher number")
-        msg = "\n".join(results)
+        if guess_data["pokedex"] > secret["pokedex"]:
+            results.append("Pokédex: 🔽 secret has a lower number")
+        else:
+            results.append("Pokédex: 🔼 secret has a higher number")
 
-    if len(user_attempts) >= 9 and guess_data["pokedex"] != secret["pokedex"]:
-        msg += f"\n❌ Out of tries! Today's Pokémon was **{secret['name'].title()}**."
-    else:
-        remaining = 9 - len(user_attempts)
-        msg += f"\n🕹️ {remaining} tries left."
+        if len(user_attempts) >= 9:
+            results.append(f"❌ Out of tries! Today's Pokémon was **{secret['name'].title()}**.")
+        else:
+            remaining = 9 - len(user_attempts)
+            results.append(f"🕹️ {remaining} tries left.")
+
+        msg = "\n".join(results)
 
     await interaction.response.send_message(msg)
 
 
-# =========================================================
-# LEADERBOARD (unchanged)
-# =========================================================
+# -------------------- LEADERBOARD / STATS (daily) --------------------
 @bot.tree.command(name="leaderboard", description="See today's fastest Squirdle solvers!")
 async def leaderboard(interaction: discord.Interaction):
     global daily_game
@@ -362,8 +400,20 @@ async def leaderboard(interaction: discord.Interaction):
     await interaction.response.send_message(leaderboard_text)
 
 
+@bot.tree.command(name="stats", description="Your daily Squirdle statistics!")
+async def stats(interaction: discord.Interaction):
+    global daily_game
+    initialize_daily_game()
+    user_id = interaction.user.id
+
+    attempts = len(daily_game["attempts"].get(user_id, []))
+    solved = user_id in daily_game["completions"]
+    msg = f"📊 **Daily Stats**\nAttempts today: **{attempts}**\nSolved: **{'Yes' if solved else 'No'}**"
+    await interaction.response.send_message(msg)
+
+
 # =========================================================
-# KEEP-ALIVE THREAD + BOT RUN
+# KEEP-ALIVE + RUN
 # =========================================================
 keep_alive()
 bot.run(os.getenv("DISCORD_TOKEN"))
