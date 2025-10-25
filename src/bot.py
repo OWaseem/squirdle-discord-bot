@@ -102,12 +102,14 @@ async def guess(interaction: discord.Interaction, name: str):
 
     game = active_games[user_id]
     secret = game["secret"]
-    game["attempts"] += 1
     guess = find_pokemon(name)
 
     if not guess:
         await interaction.response.send_message("❌ Pokémon not found! Try again.")
         return
+    
+    # Only increment attempts for valid Pokémon guesses
+    game["attempts"] += 1
     
     # Auto-provide the Pokémon name for reference
     guess_name = guess["name"].title()
