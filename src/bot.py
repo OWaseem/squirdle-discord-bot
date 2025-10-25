@@ -153,6 +153,7 @@ async def help_command(interaction: discord.Interaction):
 • `/guess` - Make a guess in daily game
 • `/leaderboard` - See today's fastest solvers
 • `/stats` - Your daily statistics
+• `/quitdaily` - Reset your daily progress and start fresh
 • `/status` - Check if bot is working
 • `/help` - Show this guide
 
@@ -406,6 +407,36 @@ async def stats(interaction: discord.Interaction):
         stats_text += f"\nUse `/daily` to start today's puzzle!"
     
     await interaction.response.send_message(stats_text)
+
+@bot.tree.command(name="quitdaily", description="Reset your daily Squirdle progress and start fresh!")
+async def quit_daily(interaction: discord.Interaction):
+    global daily_game
+    user_id = interaction.user.id
+    initialize_daily_game()
+    
+    # Check if user has any progress to reset
+    user_attempts = daily_game["attempts"].get(user_id, [])
+    has_completed = user_id in daily_game["completions"]
+    
+    if not user_attempts and not has_completed:
+        await interaction.response.send_message("❌ You haven't started today's Squirdle yet! Use `/daily` to begin.")
+        return
+    
+    # Reset user's progress
+    if user_id in daily_game["attempts"]:
+        del daily_game["attempts"][user_id]
+    
+    if user_id in daily_game["completions"]:
+        del daily_game["completions"][user_id]
+        # Remove from leaderboard
+        daily_game["leaderboard"] = [entry for entry in daily_game["leaderboard"] if entry["user_id"] != user_id]
+    
+    await interaction.response.send_message(
+        "🔄 **Daily Squirdle progress reset!**\n\n"
+        "✅ Your attempts have been cleared\n"
+        "✅ Your completion has been removed\n"
+        "🆕 You can now start fresh with `/daily`"
+    )
 
 @bot.tree.command(name="quit", description="Quit your current Squirdle game!")
 async def quit_game(interaction: discord.Interaction):
