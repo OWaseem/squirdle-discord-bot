@@ -119,7 +119,7 @@ async def start(interaction: discord.Interaction):
         "finished": False
     }
     await interaction.response.send_message(
-        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - don't worry about spelling, I'll show you the correct name!\n\n💡 Use `/status` to check if the bot is working!\n🛑 Use `/quit` to exit your current game!"
+        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - auto-completion will help with spelling!\n\n💡 Use `/status` to check if the bot is working!\n🛑 Use `/quit` to exit your current game!"
     )
 
 @bot.tree.command(name="guess", description="Guess a Pokémon!")
@@ -157,14 +157,8 @@ async def guess(interaction: discord.Interaction, name: str):
     
     # Only increment attempts for valid Pokémon guesses
     game["attempts"] += 1
-    
-    # Auto-provide the Pokémon name for reference
-    guess_name = guess["name"].title()
 
     results = []
-    
-    # Show the Pokémon name they guessed
-    results.append(f"**{guess_name}**")
 
     # Compare attributes
     if guess["generation"] == secret["generation"]:
