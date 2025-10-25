@@ -474,6 +474,91 @@ async def guess(interaction: discord.Interaction, name: str):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
+# -------------------- LEADERBOARD --------------------
+@bot.tree.command(name="leaderboard", description="See today's fastest Squirdle solvers!")
+async def leaderboard(interaction: discord.Interaction):
+    global daily_game
+    initialize_daily_game()
+    user_id = interaction.user.id
+
+    # --- If no one has solved yet ---
+    if not daily_game["leaderboard"]:
+        embed = discord.Embed(
+            title="🏆 Today's Squirdle Leaderboard",
+            description="No trainers have solved today's Squirdle yet!\nBe the first to claim the top spot 💪",
+            color=discord.Color.blurple()
+        )
+        embed.set_footer(text="💡 Use /daily to start playing!")
+        await interaction.response.send_message(embed=embed)
+        return
+
+    # --- Sort leaderboard by attempts and completion time ---
+    daily_game["leaderboard"].sort(key=lambda x: (x["attempts"], x["completion_time"]))
+
+    # --- Build top 10 entries ---
+    leaderboard_lines = []
+    for i, entry in enumerate(daily_game["leaderboard"][:10], 1):
+        rank_emoji = (
+            "🥇" if i == 1 else
+            "🥈" if i == 2 else
+            "🥉" if i == 3 else
+            f"{i}️⃣"
+        )
+        time_str = entry["completion_time"].strftime("%H:%M EDT")
+        leaderboard_lines.append(
+            f"{rank_emoji} **{entry['username']}** — {entry['attempts']} tries ({time_str})"
+        )
+
+    description = "\n".join(leaderboard_lines)
+
+    # --- Handle extra solvers beyond top 10 ---
+    extra = len(daily_game["leaderboard"]) - 10
+    if extra > 0:
+        description += f"\n\n...and **{extra}** more trainers have completed it!"
+
+    # --- Create public leaderboard embed ---
+    public_embed = discord.Embed(
+        title="🏆 Today's Squirdle Leaderboard",
+        description=description,
+        color=discord.Color.gold()
+    )
+    public_embed.set_footer(text="💡 The leaderboard resets daily at midnight (EDT).")
+
+    # --- Send public leaderboard ---
+    await interaction.response.send_message(embed=public_embed)
+
+    # --- Private user placement summary (ephemeral) ---
+    user_rank = None
+    user_attempts = None
+    for i, entry in enumerate(daily_game["leaderboard"], 1):
+        if entry["user_id"] == user_id:
+            user_rank = i
+            user_attempts = entry["attempts"]
+            break
+
+    if user_rank:
+        daily_pokemon_name = daily_game["pokemon"]["name"].title()
+        private_msg = (
+            f"You're currently **#{user_rank}** with **{user_attempts}** tries!\n"
+            f"Today's secret Pokémon was **{daily_pokemon_name}** 🐾"
+        )
+        private_embed = discord.Embed(
+            title="🔒 Your Personal Leaderboard Summary",
+            description=private_msg,
+            color=discord.Color.green()
+        )
+        private_embed.set_footer(text="This message is private to you.")
+        await interaction.followup.send(embed=private_embed, ephemeral=True)
+    else:
+        private_embed = discord.Embed(
+            title="🔒 Your Personal Leaderboard Summary",
+            description="You haven’t solved today's Squirdle yet!\nUse `/daily` to join the challenge 🕹️",
+            color=discord.Color.orange()
+        )
+        private_embed.set_footer(text="This message is private to you.")
+        await interaction.followup.send(embed=private_embed, ephemeral=True)
+
+
 # -------------------- STATS --------------------
 @bot.tree.command(name="stats", description="View your personal and daily Squirdle statistics!")
 async def stats(interaction: discord.Interaction):
