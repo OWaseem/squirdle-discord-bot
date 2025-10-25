@@ -65,6 +65,7 @@ intents = discord.Intents.default()
 intents.message_content = True  # Enable message content intent
 bot = commands.Bot(command_prefix="!", intents=intents)
 active_games = {}
+bot_updating = False  # Track if bot is updating
 
 def find_pokemon(name):
     name = name.lower().strip()
@@ -75,13 +76,37 @@ def find_pokemon(name):
 
 @bot.event
 async def on_ready():
+    global bot_updating
+    bot_updating = False  # Bot is back online
     print(f"✅ Logged in as {bot.user}")
     await bot.tree.sync()
     print("🌐 Slash commands synced!")
 
+@bot.event
+async def on_disconnect():
+    global bot_updating
+    bot_updating = True  # Bot is updating/disconnecting
+    print("🔄 Bot is updating - please wait a moment...")
+
+@bot.event
+async def on_resumed():
+    global bot_updating
+    bot_updating = False  # Bot reconnected
+    print("✅ Bot reconnected and ready!")
+
 @bot.tree.command(name="status", description="Check if the bot is working!")
 async def status(interaction: discord.Interaction):
-    await interaction.response.send_message("✅ Bot is online and ready to play Squirdle!")
+    global bot_updating
+    if bot_updating:
+        await interaction.response.send_message("🔄 Bot is updating - please wait a moment! New features are being deployed.")
+    else:
+        await interaction.response.send_message("✅ Bot is online and ready to play Squirdle!")
+
+@bot.tree.command(name="updating", description="Mark bot as updating (for development)")
+async def updating(interaction: discord.Interaction):
+    global bot_updating
+    bot_updating = True
+    await interaction.response.send_message("🔄 Bot marked as updating - users will be notified!")
 
 @bot.tree.command(name="start", description="Start a new Squirdle game!")
 async def start(interaction: discord.Interaction):
