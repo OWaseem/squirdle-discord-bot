@@ -263,40 +263,41 @@ async def daily(interaction: discord.Interaction):
     user_id = interaction.user.id
     initialize_daily_game()
 
-    await interaction.response.send_message(
-        f"🎮 Starting today's Squirdle! You can keep playing your personal game alongside this one.\n\n"
-        f"Use `/guess name:<pokemon>` to make your first guess.\n"
-        f"💡 Use `/leaderboard` to see today's fastest solvers!",
-        ephemeral=True
-    )
+    user_attempts = daily_game["attempts"].get(user_id, [])
+    message = ""
 
+    # --- Determine the correct message for the user's state ---
     if user_id in daily_game["completions"]:
         t = daily_game["completions"][user_id].strftime("%H:%M EDT")
-        await interaction.followup.send(
-            f"🎉 You already solved today's Squirdle at {t}.\n🕐 New puzzle at midnight EDT!",
-            ephemeral=True
+        message = (
+            f"🎉 You already solved today's Squirdle at {t}.\n"
+            f"🕐 New puzzle available at midnight EDT!"
         )
-        return
 
-    user_attempts = daily_game["attempts"].get(user_id, [])
-    if len(user_attempts) >= 9:
-        await interaction.followup.send(
-            "❌ You've used all 9 attempts!\n🕐 New puzzle available at midnight EDT!",
-            ephemeral=True
+    elif len(user_attempts) >= 9:
+        message = (
+            f"❌ You've used all 9 attempts for today's Squirdle!\n"
+            f"🕐 New puzzle available at midnight EDT!"
         )
-        return
 
-    if user_attempts:
+    elif user_attempts:
         remaining = 9 - len(user_attempts)
-        await interaction.followup.send(
-            f"🎮 Welcome back! You have {remaining} attempts remaining.\nUse `/guess` to continue!",
-            ephemeral=True
+        message = (
+            f"🎮 Welcome back to today's Squirdle! You have {remaining} attempts remaining.\n"
+            f"Use `/guess name:<pokemon>` to continue playing!\n"
+            f"💡 Use `/leaderboard` to see today's fastest solvers!"
         )
+
     else:
-        await interaction.followup.send(
-            f"🎮 Welcome! You have 9 tries to guess the Pokémon.\nUse `/guess` to make your first guess!",
-            ephemeral=True
+        message = (
+            f"🎮 Starting today's Squirdle! You can keep playing your personal game alongside this one.\n\n"
+            f"Use `/guess name:<pokemon>` to make your first guess.\n"
+            f"💡 Use `/leaderboard` to see today's fastest solvers!"
         )
+
+    # --- Send one clear, public message ---
+    await interaction.response.send_message(message, ephemeral=False)
+
 
 
 # -------------------- START --------------------
