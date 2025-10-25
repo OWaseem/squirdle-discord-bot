@@ -119,7 +119,7 @@ async def start(interaction: discord.Interaction):
         "finished": False
     }
     await interaction.response.send_message(
-        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - don't worry about spelling, I'll show you the correct name!\n\n💡 Use `/status` to check if the bot is working!"
+        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon. Use `/guess name:<pokemon>` - don't worry about spelling, I'll show you the correct name!\n\n💡 Use `/status` to check if the bot is working!\n🛑 Use `/quit` to exit your current game!"
     )
 
 @bot.tree.command(name="guess", description="Guess a Pokémon!")
@@ -213,6 +213,22 @@ async def guess(interaction: discord.Interaction, name: str):
         msg += f"\n🕹️ {remaining} tries left."
 
     await interaction.response.send_message(msg)
+
+@bot.tree.command(name="quit", description="Quit your current Squirdle game!")
+async def quit_game(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    
+    if user_id not in active_games:
+        await interaction.response.send_message("❌ No active game to quit! Use `/start` to begin a new game.")
+        return
+    
+    if active_games[user_id]["finished"]:
+        await interaction.response.send_message("❌ Your game is already finished! Use `/start` to begin a new game.")
+        return
+    
+    # Remove the game
+    del active_games[user_id]
+    await interaction.response.send_message("👋 Game quit! Use `/start` to begin a new Squirdle game when you're ready!")
 
 if __name__ == "__main__":
     bot.run(TOKEN)
