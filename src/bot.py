@@ -146,7 +146,7 @@ async def status(interaction: discord.Interaction):
             description="Please wait a moment! New features are being deployed.",
             color=discord.Color.orange()
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
     # --- Personal game state ---
@@ -178,7 +178,7 @@ async def status(interaction: discord.Interaction):
     embed.add_field(name="🎮 Personal Game", value=personal_status, inline=False)
     embed.set_footer(text="💡 Use /help for all commands")
 
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 @bot.tree.command(name="help", description="Learn how to play Squirdle!")
@@ -300,10 +300,11 @@ async def start(interaction: discord.Interaction):
         "finished": False
     }
     await interaction.response.send_message(
-        f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon.\n"
-        f"Use `/guess name:<pokemon>` to make your first guess.\n\n"
-        f"💡 Use `/help` to learn how to play!\n🛑 Use `/quit` to exit your current game!"
-    )
+    f"🎮 New game started, {interaction.user.name}! You have 9 tries to guess the Pokémon.\n"
+    f"Use `/guess name:<pokemon>` to make your first guess.\n\n"
+    f"💡 Use `/help` to learn how to play!\n🛑 Use `/quit` to exit your current game!",
+    ephemeral=True
+)
 
 
 @bot.tree.command(name="quit", description="Quit your current individual game")
@@ -311,9 +312,9 @@ async def quit_personal(interaction: discord.Interaction):
     user_id = interaction.user.id
     if user_id in active_games and not active_games[user_id]["finished"]:
         del active_games[user_id]
-        await interaction.response.send_message("🛑 Your individual game has been ended.")
+        await interaction.response.send_message("🛑 Your individual game has been ended.", ephemeral=True)
     else:
-        await interaction.response.send_message("ℹ️ You don't have an active individual game.")
+        await interaction.response.send_message("ℹ️ You don't have an active individual game.", ephemeral=True)
 
 
 # -------------------- AUTOCOMPLETE --------------------
@@ -374,7 +375,7 @@ async def guess(interaction: discord.Interaction, name: str):
 
             msg = "\n".join(results)
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
     # DAILY GAME
@@ -431,7 +432,7 @@ async def leaderboard(interaction: discord.Interaction):
     initialize_daily_game()
     user_id = interaction.user.id
 
-    # No completions yet
+    # --- No completions yet ---
     if not daily_game["leaderboard"]:
         embed = discord.Embed(
             title="🏆 Today's Squirdle Leaderboard",
@@ -442,10 +443,10 @@ async def leaderboard(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed)
         return
 
-    # Sort leaderboard by attempts then completion time
+    # --- Sort leaderboard by attempts then completion time ---
     daily_game["leaderboard"].sort(key=lambda x: (x["attempts"], x["completion_time"]))
 
-    # Build top 10 entries
+    # --- Build top 10 entries ---
     leaderboard_lines = []
     for i, entry in enumerate(daily_game["leaderboard"][:10], 1):
         rank_emoji = (
@@ -461,12 +462,23 @@ async def leaderboard(interaction: discord.Interaction):
 
     description = "\n".join(leaderboard_lines)
 
-    # Add note for extra solvers
+    # --- Add note for extra solvers ---
     extra = len(daily_game["leaderboard"]) - 10
     if extra > 0:
         description += f"\n\n...and **{extra}** more trainers are on the board!"
 
-    # --- Find calling user's rank ---
+    # --- Create public leaderboard embed ---
+    public_embed = discord.Embed(
+        title="🏆 Today's Squirdle Leaderboard",
+        description=description,
+        color=discord.Color.gold()
+    )
+    public_embed.set_footer(text="💡 The leaderboard resets daily at midnight (EDT).")
+
+    # --- Send the public leaderboard embed ---
+    await interaction.response.send_message(embed=public_embed)
+
+    # --- Personal details (private follow-up) ---
     user_rank = None
     user_attempts = None
     for i, entry in enumerate(daily_game["leaderboard"], 1):
@@ -475,46 +487,35 @@ async def leaderboard(interaction: discord.Interaction):
             user_attempts = entry["attempts"]
             break
 
-    # --- Create embed ---
-    embed = discord.Embed(
-        title="🏆 Today's Squirdle Leaderboard",
-        description=description,
-        color=discord.Color.gold()
-    )
-
-    # --- User-specific feedback section ---
+    # --- Private embed (ephemeral) ---
     if user_rank:
-        # If solved, show daily Pokémon name
         daily_pokemon_name = daily_game["pokemon"]["name"].title()
         if user_rank <= 10:
-            embed.add_field(
-                name="👤 Your Rank",
-                value=(
-                    f"You're currently **#{user_rank}** with **{user_attempts}** tries — well done! 💪\n"
-                    f"Today's secret Pokémon was **{daily_pokemon_name}** 🐾"
-                ),
-                inline=False
+            desc = (
+                f"You're currently **#{user_rank}** with **{user_attempts}** tries — amazing work! 💪\n"
+                f"Today's secret Pokémon was **{daily_pokemon_name}** 🐾"
             )
         else:
-            embed.add_field(
-                name="👤 Your Rank",
-                value=(
-                    f"You're currently **#{user_rank}** with **{user_attempts}** tries.\n"
-                    f"Keep training to make the top 10! 🔥\n"
-                    f"Today's secret Pokémon was **{daily_pokemon_name}** 🐾"
-                ),
-                inline=False
+            desc = (
+                f"You're currently **#{user_rank}** with **{user_attempts}** tries.\n"
+                f"Keep training to make the top 10! 🔥\n"
+                f"Today's secret Pokémon was **{daily_pokemon_name}** 🐾"
             )
-    else:
-        embed.add_field(
-            name="👤 Your Rank",
-            value="You haven’t solved today’s Squirdle yet!\nUse `/daily` to play and earn your spot 🕹️",
-            inline=False
+        private_embed = discord.Embed(
+            title="🔒 Your Personal Squirdle Summary",
+            description=desc,
+            color=discord.Color.green()
         )
-
-    embed.set_footer(text="💡 The leaderboard and Pokémon reset daily at midnight (EDT).")
-
-    await interaction.response.send_message(embed=embed)
+        private_embed.set_footer(text="This message is private and visible only to you.")
+        await interaction.followup.send(embed=private_embed, ephemeral=True)
+    else:
+        private_embed = discord.Embed(
+            title="🔒 Your Personal Squirdle Summary",
+            description="You haven’t solved today’s Squirdle yet!\nUse `/daily` to play and earn your spot 🕹️",
+            color=discord.Color.orange()
+        )
+        private_embed.set_footer(text="This message is private and visible only to you.")
+        await interaction.followup.send(embed=private_embed, ephemeral=True)
 
 
 @bot.tree.command(name="stats", description="View your personal and daily Squirdle statistics!")
@@ -565,7 +566,7 @@ async def stats(interaction: discord.Interaction):
     embed.add_field(name="🎮 Personal Game", value=personal_details, inline=False)
     embed.set_footer(text="🏆 Use /leaderboard to see today's top solvers!")
 
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # =========================================================
