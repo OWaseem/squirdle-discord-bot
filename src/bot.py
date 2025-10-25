@@ -99,6 +99,22 @@ async def start(interaction: discord.Interaction):
 
 @bot.tree.command(name="guess", description="Guess a Pokémon!")
 @app_commands.describe(name="The Pokémon you want to guess")
+@app_commands.autocomplete(name=async def pokemon_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    # Get first 25 Pokémon that match the current input
+    matches = []
+    current_lower = current.lower()
+    
+    for pokemon in POKEMON_DATA:
+        if current_lower in pokemon["name"].lower():
+            matches.append(app_commands.Choice(name=pokemon["name"].title(), value=pokemon["name"]))
+            if len(matches) >= 25:  # Discord limit
+                break
+    
+    return matches
+)
 async def guess(interaction: discord.Interaction, name: str):
     user_id = interaction.user.id
 
