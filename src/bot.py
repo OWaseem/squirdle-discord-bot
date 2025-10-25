@@ -4,7 +4,7 @@ import json
 import discord
 import signal
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 discord.opus = None   # 👈 Prevents Render crash (disables audio)
 
 # Fix for Python 3.13 audioop module issue
@@ -87,18 +87,22 @@ def find_pokemon(name):
 def initialize_daily_game():
     """Initialize or reset the daily game"""
     global daily_game
-    today = datetime.now(timezone.utc).date()
+    
+    # Get current time in Eastern Daylight Time (EDT = UTC-4)
+    edt_offset = timedelta(hours=-4)
+    edt_timezone = timezone(edt_offset)
+    today_edt = datetime.now(edt_timezone).date()
     
     # Check if we need to reset for a new day
-    if daily_game["date"] != today:
+    if daily_game["date"] != today_edt:
         # Use date as seed for consistent daily Pokémon
-        seed = today.toordinal()
+        seed = today_edt.toordinal()
         random.seed(seed)
         daily_pokemon = random.choice(POKEMON_DATA)
         
         daily_game = {
             "pokemon": daily_pokemon,
-            "date": today,
+            "date": today_edt,
             "attempts": {},
             "completions": {},
             "leaderboard": []
@@ -169,7 +173,7 @@ async def help_command(interaction: discord.Interaction):
 
 **Daily Features:**
 • **Same puzzle for everyone** - Like Wordle!
-• **Daily reset** - New Pokémon at midnight UTC
+• **Daily reset** - New Pokémon at midnight EDT
 • **Leaderboard** - See who solved it fastest
 • **One attempt per day** - No multiple tries
 
@@ -198,8 +202,8 @@ async def daily(interaction: discord.Interaction):
     if user_id in daily_game["completions"]:
         completion_time = daily_game["completions"][user_id]
         await interaction.response.send_message(
-            f"🎉 You already solved today's Squirdle! Completed at {completion_time.strftime('%H:%M UTC')}.\n\n"
-            f"🕐 New puzzle available at midnight UTC!"
+            f"🎉 You already solved today's Squirdle! Completed at {completion_time.strftime('%H:%M EDT')}.\n\n"
+            f"🕐 New puzzle available at midnight EDT!"
         )
         return
     
@@ -208,7 +212,7 @@ async def daily(interaction: discord.Interaction):
     if len(user_attempts) >= 9:
         await interaction.response.send_message(
             f"❌ You've used all 9 attempts for today's Squirdle!\n\n"
-            f"🕐 New puzzle available at midnight UTC!"
+            f"🕐 New puzzle available at midnight EDT!"
         )
         return
     
@@ -269,13 +273,13 @@ async def guess(interaction: discord.Interaction, name: str):
     
     # Check if user already completed today's puzzle
     if user_id in daily_game["completions"]:
-        await interaction.response.send_message("🎉 You already solved today's Squirdle! New puzzle available at midnight UTC.")
+        await interaction.response.send_message("🎉 You already solved today's Squirdle! New puzzle available at midnight EDT.")
         return
     
     # Check if user has attempts remaining
     user_attempts = daily_game["attempts"].get(user_id, [])
     if len(user_attempts) >= 9:
-        await interaction.response.send_message("❌ You've used all 9 attempts for today's Squirdle! New puzzle available at midnight UTC.")
+        await interaction.response.send_message("❌ You've used all 9 attempts for today's Squirdle! New puzzle available at midnight EDT.")
         return
     
     guess = find_pokemon(name)
@@ -360,7 +364,7 @@ async def leaderboard(interaction: discord.Interaction):
     
     leaderboard_text = "🏆 **Today's Squirdle Leaderboard**\n\n"
     for i, entry in enumerate(daily_game["leaderboard"][:10], 1):  # Top 10
-        time_str = entry["completion_time"].strftime("%H:%M UTC")
+        time_str = entry["completion_time"].strftime("%H:%M EDT")
         leaderboard_text += f"{i}. **{entry['username']}** - {entry['attempts']} tries ({time_str})\n"
     
     if len(daily_game["leaderboard"]) > 10:
@@ -379,7 +383,7 @@ async def stats(interaction: discord.Interaction):
     if user_id in daily_game["completions"]:
         completion_time = daily_game["completions"][user_id]
         attempts_used = len(user_attempts)
-        time_str = completion_time.strftime("%H:%M UTC")
+        time_str = completion_time.strftime("%H:%M EDT")
         
         # Find rank on leaderboard
         rank = None
@@ -393,7 +397,7 @@ async def stats(interaction: discord.Interaction):
         stats_text += f"⏰ **Completed at {time_str}**\n"
         if rank:
             stats_text += f"🏆 **Rank #{rank}** on leaderboard\n"
-        stats_text += f"\n🕐 New puzzle available at midnight UTC!"
+        stats_text += f"\n🕐 New puzzle available at midnight EDT!"
     elif user_attempts:
         attempts_used = len(user_attempts)
         remaining = 9 - attempts_used
