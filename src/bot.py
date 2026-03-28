@@ -69,8 +69,6 @@ async def on_ready():
     global bot_updating
     bot_updating = False
     print(f"✅ Logged in as {bot.user}")
-    await bot.tree.sync()
-    print("🌐 Slash commands synced!")
     initialize_daily_game()
 
 @bot.event
@@ -627,6 +625,14 @@ async def stats(interaction: discord.Interaction):
     embed.add_field(name="🎮 Personal Game", value=personal_details, inline=False)
     embed.set_footer(text="🏆 Use /leaderboard to see today's top solvers!")
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+@bot.command(name="sync", hidden=True)
+@commands.is_owner()
+async def sync_commands(ctx):
+    """Owner-only: manually sync slash commands when they change."""
+    await bot.tree.sync()
+    await ctx.send("Slash commands synced!")
 
 
 # =========================================================
